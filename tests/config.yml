@@ -1,6 +1,10 @@
 app:
+  name: TestApp
   version: 1.0.0
-  name: auth
+
+alerts:
+  emails:
+    - a.itskovich@molbulak.com
 
 email:
   from: finstart.mailer@molbulak.com
@@ -11,10 +15,6 @@ email:
   port: 25
   encoding: utf-8
 
-alerts:
-  emails:
-    - a.itskovich@molbulak.com
-
 fr:
   url: http://10.1.2.103:8091
   developer_id: 106567582
@@ -22,15 +22,18 @@ fr:
 sh:
   executor: C:\Program Files\Git\bin\bash.exe
 
-server:
-  port: 8081
+loggers:
+  my:
+    backup_count: 3
+
 
 prod:
-  db:
-    url: 10.1.2.11/3050:e:/ib_base/db_mbfru.ib
-    username: SYSDBA
-    password: F!ora80X
+  qcb:
+    version: 1
+
 
 dev:
-  db:
-    connection-string: mongodb://localhost:27017/?readPreference=primary&ssl=false&directConnection=true
+  qcb:
+    version: 1.1
+
+

@@ -1,0 +1,44 @@
+from dataclasses import dataclass
+from typing import TypeVar, Generic
+
+from src.mybootstrap_mvc_itskovichanton.pipeline import Call
+
+ID = TypeVar('ID')
+
+ROLE_ADMIN = "admin"
+ROLE_REGULAR_USER = "regular-user"
+
+
+@dataclass
+class User(Generic[ID]):
+    username: str = None
+    password: str = None
+    _id: ID = None
+    role: str = None
+    lang: str = None
+    name: str = None
+    session_token: str = None
+    ip: str = None
+
+    @property
+    def id(self):
+        return self._id
+
+
+@dataclass
+class Session:
+    token: str = None
+    account: User = None
+
+
+@dataclass
+class AuthArgs:
+    username: str = None
+    password: str = None
+    session_token: str = None
+
+
+class Caller(Call):
+    auth_args: AuthArgs = None
+    session: Session = None
+    lang: str = None
