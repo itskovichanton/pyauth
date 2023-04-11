@@ -1,4 +1,4 @@
-import base64
+import hashlib
 import random
 from typing import Protocol
 
@@ -17,15 +17,12 @@ class SimpleTokenFactory(TokenFactory):
 
     def generate(self, user: User) -> str:
         arg = f"{user.username}:{random.randint(10, int(10e6))}"
-        return str(base64.standard_b64encode(arg))
+        return hashlib.md5(arg.encode()).hexdigest()
 
 
 class SessionStorage(Protocol):
 
     def find_session(self, criteria: Session) -> Session:
-        ...
-
-    def get_session_by_token(self, token: str) -> Session:
         ...
 
     def logout(self, session: Session) -> Session:
@@ -47,7 +44,7 @@ class InMemSessionStorage(SessionStorage):
 
     def find_session(self, criteria: Session) -> Session:
 
-        if len(criteria.token) > 0:
+        if criteria.token and len(criteria.token) > 0:
             return self.token_to_session.get(criteria.token)
 
         token = self.username_to_token.get(criteria.account.username)
@@ -83,7 +80,7 @@ class InMemSessionStorage(SessionStorage):
         return session
 
     def _calc_new_token(self, user: User) -> str:
-        if len(user.session_token) > 0:
+        if user.session_token and len(user.session_token) > 0:
             return user.session_token
 
         r = self.token_factory.generate(user)

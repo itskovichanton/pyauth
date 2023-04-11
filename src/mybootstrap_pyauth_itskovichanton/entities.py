@@ -13,16 +13,12 @@ ROLE_REGULAR_USER = "regular-user"
 class User(Generic[ID]):
     username: str = None
     password: str = None
-    _id: ID = None
+    id: ID = None
     role: str = None
     lang: str = None
     name: str = None
     session_token: str = None
     ip: str = None
-
-    @property
-    def id(self):
-        return self._id
 
 
 @dataclass
@@ -37,8 +33,13 @@ class AuthArgs:
     password: str = None
     session_token: str = None
 
+    def empty(self):
+        return not self.username and not self.password and not self.session_token
 
-class Caller(Call):
+
+@dataclass
+class Caller:
+    call: Call = None
     auth_args: AuthArgs = None
     session: Session = None
     lang: str = None
