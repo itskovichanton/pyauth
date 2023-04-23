@@ -20,13 +20,13 @@ class User(Generic[ID]):
     ip: str = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class Session:
     token: str = None
     account: User = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class AuthArgs:
     username: str = None
     password: str = None

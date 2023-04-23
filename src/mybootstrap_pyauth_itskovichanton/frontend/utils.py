@@ -7,15 +7,23 @@ from src.mybootstrap_pyauth_itskovichanton.entities import Caller, AuthArgs, Ses
 
 def get_caller_from_request(request: Request) -> Caller:
     call = get_call_from_request(request)
-    auth_args = AuthArgs(session_token=request.headers.get("sessionToken"))
+    username = None
+    password = None
     auth = request.headers.get("Authorization")
     if auth:
-        auth_args.username, auth_args.password = basicauth.decode(auth)
+        username, password = basicauth.decode(auth)
+    token = request.headers.get("sessionToken")
+    auth_args = AuthArgs(session_token=token, username=username, password=password)
+
+    if auth_args.empty():
+        auth_args = None
 
     lang = request.headers.get("lang") or request.query_params.get("lang")
-    r = Caller(call=call, auth_args=auth_args, session=Session(
-        account=User(ip=call.ip, username=auth_args.username,
-                     password=auth_args.password), token=auth_args.session_token), lang=lang)
-    if auth_args.empty():
-        r.auth_args = None
-    return r
+    return Caller(call=call,
+                  auth_args=auth_args,
+                  session=Session(account=User(
+                      ip=call.ip,
+                      username=username,
+                      lang=lang, password=password),
+                      token=token)
+                  )
