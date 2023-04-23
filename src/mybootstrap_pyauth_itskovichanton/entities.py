@@ -9,7 +9,7 @@ ROLE_ADMIN = "admin"
 ROLE_REGULAR_USER = "regular-user"
 
 
-@dataclass
+@dataclass(frozen=True)
 class User(Generic[ID]):
     username: str = None
     password: str = None
@@ -17,7 +17,6 @@ class User(Generic[ID]):
     role: str = None
     lang: str = None
     name: str = None
-    session_token: str = None
     ip: str = None
 
 

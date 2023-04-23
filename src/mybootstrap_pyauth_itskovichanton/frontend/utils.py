@@ -14,7 +14,7 @@ def get_caller_from_request(request: Request) -> Caller:
 
     lang = request.headers.get("lang") or request.query_params.get("lang")
     r = Caller(call=call, auth_args=auth_args, session=Session(
-        account=User(ip=call.ip, session_token=auth_args.session_token, username=auth_args.username,
+        account=User(ip=call.ip, username=auth_args.username,
                      password=auth_args.password), token=auth_args.session_token), lang=lang)
     if auth_args.empty():
         r.auth_args = None

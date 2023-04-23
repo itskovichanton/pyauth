@@ -1,22 +1,24 @@
 import hashlib
 import random
+import threading
 from typing import Protocol
 
+from sortedcontainers import SortedDict
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
 
 from src.mybootstrap_pyauth_itskovichanton.entities import User, Session
 
 
 class TokenFactory(Protocol):
-    def generate(self, user: User) -> str:
+    def generate(self, token_to_fix: str, user: User) -> str:
         ...
 
 
 @bean
 class SimpleTokenFactory(TokenFactory):
 
-    def generate(self, user: User) -> str:
-        arg = f"{user.username}:{random.randint(10, int(10e6))}"
+    def generate(self, token_to_fix: str, user: User) -> str:
+        arg = f"{token_to_fix}:{user.username}:{random.randint(10, int(10e6))}"
         return hashlib.md5(arg.encode()).hexdigest()
 
 
@@ -31,10 +33,10 @@ class SessionStorage(Protocol):
     def clear(self):
         ...
 
-    def assign_session(self, user: User) -> Session:
+    def assign_session(self, user: User, forced_session_token: str = None):
         ...
 
-    def get_user_count(self):
+    def get_user_count(self) -> dict[str, int]:
         ...
 
 
@@ -43,6 +45,7 @@ class InMemSessionStorage(SessionStorage):
     token_factory: TokenFactory
 
     def init(self):
+        self.lock = threading.Lock()
         self.clear()
 
     def find_session(self, criteria: Session) -> Session:
@@ -57,40 +60,45 @@ class InMemSessionStorage(SessionStorage):
     def logout(self, criteria: Session) -> Session:
         removed_session = self.find_session(criteria)
         if removed_session:
-            self.token_to_session.pop(removed_session.token)
-            self.username_to_token.pop(removed_session.account.username)
+            with self.lock:
+                self.token_to_session.pop(removed_session.token)
+                self.username_to_token.pop(removed_session.account.username)
+                # removed_session.account.session_token = None
 
         return removed_session
 
     def clear(self):
-        self.token_to_session = dict[str, Session]()
-        self.username_to_token = dict[str, str]()
+        self.token_to_session = SortedDict[str, Session]()
+        self.username_to_token = SortedDict[str, str]()
 
-    def assign_session(self, user: User):
-        self.logout(Session(account=user, token=user.session_token))
+    def assign_session(self, user: User, forced_session_token: str = None):
 
-        token = self.username_to_token.get(user.username)
-        if not token:
-            token = self._calc_new_token(user)
-            self.username_to_token[user.username] = token
+        self.logout(Session(account=user, token=forced_session_token))
 
-        session = self.username_to_token.get(token)
-        if not session:
-            session = Session(token=token, account=user)
-            self.token_to_session[token] = session
+        with self.lock:
+            new_token = forced_session_token or self._calc_new_token(user)
+            session = Session(token=new_token, account=user)
 
-        user.session_token = token
+            self.username_to_token[user.username] = new_token
+            self.token_to_session[new_token] = session
+
+            # user.session_token = new_token
+
         return session
 
     def _calc_new_token(self, user: User) -> str:
-        if user.session_token and len(user.session_token) > 0:
-            return user.session_token
+        # if user.session_token and len(user.session_token) > 0:
+        #     return user.session_token
 
-        r = self.token_factory.generate(user)
-        while self.token_to_session.get(r):
-            r = self.token_factory.generate(user)
+        r = self.token_factory.generate("", user)
+        while True:
+            existing_session = self.token_to_session.get(r)
+            if existing_session:
+                r = self.token_factory.generate(existing_session.token, user)
+            else:
+                break
 
         return r
 
-    def get_user_count(self):
+    def get_user_count(self) -> dict[str, int]:
         return {"username_to_token": len(self.username_to_token), "token_to_session": len(self.token_to_session)}

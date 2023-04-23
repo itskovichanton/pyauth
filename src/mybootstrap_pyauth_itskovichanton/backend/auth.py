@@ -22,7 +22,7 @@ class StraightPasswordValidator(PasswordValidator):
 
 class Authentificator(Protocol):
 
-    def register(self, user: User) -> Session:
+    def register(self, a: User, session_token: str = None) -> Session:
         ...
 
     def login(self, auth_args: AuthArgs) -> Session:
@@ -54,7 +54,7 @@ class AuthentificatorImpl(Authentificator):
 
     def login(self, a: AuthArgs) -> Session:
 
-        if len(a.session_token) > 0:
+        if len(a.session_token or "") > 0:
             return self.session_storage.find_session(Session(token=a.session_token))
 
         validation.check_not_empty("username", a.username)
@@ -70,7 +70,7 @@ class AuthentificatorImpl(Authentificator):
 
         return self.session_storage.assign_session(user)
 
-    def register(self, a: User) -> Session:
+    def register(self, a: User, session_token: str = None) -> Session:
 
         validation.check_not_empty("username", a.username)
         validation.check_not_empty("password", a.password)
@@ -81,4 +81,4 @@ class AuthentificatorImpl(Authentificator):
 
         self.user_repo.put(a)
 
-        return self.session_storage.assign_session(a)
+        return self.session_storage.assign_session(a, forced_session_token=session_token)
