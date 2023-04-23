@@ -34,6 +34,9 @@ class SessionStorage(Protocol):
     def assign_session(self, user: User) -> Session:
         ...
 
+    def get_user_count(self):
+        ...
+
 
 @bean
 class InMemSessionStorage(SessionStorage):
@@ -88,3 +91,6 @@ class InMemSessionStorage(SessionStorage):
             r = self.token_factory.generate(user)
 
         return r
+
+    def get_user_count(self):
+        return {"username_to_token": len(self.username_to_token), "token_to_session": len(self.token_to_session)}

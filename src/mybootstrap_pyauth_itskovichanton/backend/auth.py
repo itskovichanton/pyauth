@@ -4,8 +4,8 @@ from src.mybootstrap_core_itskovichanton import validation
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
 from src.mybootstrap_mvc_itskovichanton.exceptions import CoreException
 
-from src.mybootstrap_pyauth_itskovichanton.session_storage import SessionStorage
-from src.mybootstrap_pyauth_itskovichanton.user_repo import UserRepo
+from src.mybootstrap_pyauth_itskovichanton.backend.session_storage import SessionStorage
+from src.mybootstrap_pyauth_itskovichanton.backend.user_repo import UserRepo
 from src.mybootstrap_pyauth_itskovichanton.entities import User, Session, AuthArgs
 
 
