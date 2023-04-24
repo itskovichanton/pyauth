@@ -4,9 +4,14 @@ import threading
 from typing import Protocol
 
 from sortedcontainers import SortedDict
+from src.mbulak_tools.events import event_bus
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
 
+from src.mybootstrap_pyauth_itskovichanton.backend.utils import ThreadSafeImmutableDict
 from src.mybootstrap_pyauth_itskovichanton.entities import User, Session
+
+EVENT_LOGOUT = "event-logout"
+EVENT_LOGIN = "event-login"
 
 
 class TokenFactory(Protocol):
@@ -63,13 +68,14 @@ class InMemSessionStorage(SessionStorage):
             with self.lock:
                 self.token_to_session.pop(removed_session.token)
                 self.username_to_token.pop(removed_session.account.username)
+                event_bus.emit(EVENT_LOGOUT, session=removed_session)
                 # removed_session.account.session_token = None
 
         return removed_session
 
     def clear(self):
-        self.token_to_session = SortedDict[str, Session]()
-        self.username_to_token = SortedDict[str, str]()
+        self.token_to_session = ThreadSafeImmutableDict[str, Session]()
+        self.username_to_token = ThreadSafeImmutableDict[str, str]()
 
     def assign_session(self, user: User, forced_session_token: str = None):
 
@@ -81,6 +87,8 @@ class InMemSessionStorage(SessionStorage):
 
             self.username_to_token[user.username] = new_token
             self.token_to_session[new_token] = session
+
+            event_bus.emit(EVENT_LOGIN, session=session)
 
             # user.session_token = new_token
 
