@@ -3,7 +3,6 @@ import random
 import threading
 from typing import Protocol
 
-from sortedcontainers import SortedDict
 from src.mbulak_tools.events import event_bus
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
 
