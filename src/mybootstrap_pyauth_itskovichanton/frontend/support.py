@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
+from src.mybootstrap_ioc_itskovichanton.utils import default_dataclass_field
+from src.mybootstrap_mvc_fastapi_itskovichanton.presenters import JSONResultPresenterImpl
+from src.mybootstrap_mvc_itskovichanton.result_presenter import ResultPresenter
 from starlette.requests import Request
 
 from src.mybootstrap_pyauth_itskovichanton.frontend.controller import AuthController
@@ -9,12 +12,24 @@ from src.mybootstrap_pyauth_itskovichanton.frontend.utils import get_caller_from
 @bean
 class AuthFastAPISupport:
     controller: AuthController
+    presenter: ResultPresenter = default_dataclass_field(JSONResultPresenterImpl(exclude_none=True))
 
     def mount(self, fast_api: FastAPI):
-        @fast_api.get("/auth/getUser")
+        @fast_api.get("/auth/logoutAll")
         async def get_user(request: Request):
-            return await self.controller.get_user(caller=get_caller_from_request(request))
+            return self.presenter.present(await self.controller.logout_all(caller=get_caller_from_request(request)))
 
-        @fast_api.get("/auth/getUserCount")
-        async def get_user(request: Request):
-            return await self.controller.get_user_count(caller=get_caller_from_request(request))
+        @fast_api.get("/auth/getUser")
+        async def get_user(request: Request, username: str = None):
+            return self.presenter.present(
+                await self.controller.get_user(caller=get_caller_from_request(request), username=username))
+
+        @fast_api.get("/auth/getUserToToken")
+        async def get_user_to_token(request: Request):
+            return self.presenter.present(
+                await self.controller.get_user_to_token(caller=get_caller_from_request(request)))
+
+        @fast_api.get("/auth/getTokenToSession")
+        async def get_token_to_session(request: Request):
+            return self.presenter.present(
+                await self.controller.get_token_to_session(caller=get_caller_from_request(request)))

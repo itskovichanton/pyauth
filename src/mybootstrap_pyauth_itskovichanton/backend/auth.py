@@ -47,7 +47,7 @@ class AuthentificatorImpl(Authentificator):
     password_validator: PasswordValidator
 
     def logout_all(self):
-        self.session_storage.clear()
+        self.session_storage.logout_all()
 
     def logout(self, session: Session) -> Session:
         return self.session_storage.logout(session)

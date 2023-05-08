@@ -4,9 +4,12 @@ import threading
 from typing import Protocol
 
 from src.mbulak_tools.events import event_bus
+from src.mybootstrap_core_itskovichanton.redis_service import RedisService
+from src.mybootstrap_core_itskovichanton.utils import md5
+from src.mybootstrap_ioc_itskovichanton.config import ConfigService
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
 
-from src.mybootstrap_pyauth_itskovichanton.backend.utils import ThreadSafeImmutableDict
+from src.mybootstrap_pyauth_itskovichanton.backend.utils import RedisSessionMap, RedisStringMap
 from src.mybootstrap_pyauth_itskovichanton.entities import User, Session
 
 EVENT_LOGOUT = "event-logout"
@@ -34,23 +37,38 @@ class SessionStorage(Protocol):
     def logout(self, session: Session) -> Session:
         ...
 
-    def clear(self):
+    def logout_all(self):
         ...
 
     def assign_session(self, user: User, forced_session_token: str = None):
         ...
 
-    def get_user_count(self) -> dict[str, int]:
+    def get_token_to_session_storage(self):
+        ...
+
+    def get_username_to_token_storage(self):
+        ...
+
+    def set_user_class(self, user_class=User):
         ...
 
 
 @bean
-class InMemSessionStorage(SessionStorage):
+class RedisSessionStorage(SessionStorage):
     token_factory: TokenFactory
+    config_service: ConfigService
+    redis_service: RedisService
 
     def init(self):
         self.lock = threading.Lock()
-        self.clear()
+        self.rds = self.redis_service.get()
+
+        key_prefix = md5(self.config_service.get_config().full_name())
+        self.token_to_session = RedisSessionMap(key_prefix=f"{key_prefix}-ts", rds=self.rds)
+        self.username_to_token = RedisStringMap(key_prefix=f"{key_prefix}-ut", rds=self.rds)
+
+    def set_user_class(self, user_class=User):
+        self.token_to_session.set_user_class(user_class)
 
     def find_session(self, criteria: Session) -> Session:
 
@@ -59,22 +77,24 @@ class InMemSessionStorage(SessionStorage):
 
         token = self.username_to_token.get(criteria.account.username)
         if token:
-            return self.token_to_session.get(token)
+            session = self.token_to_session.get(token)
+            if session:
+                return session
+            self.username_to_token.delete(criteria.account.username)
 
     def logout(self, criteria: Session) -> Session:
         removed_session = self.find_session(criteria)
         if removed_session:
             with self.lock:
-                self.token_to_session.pop(removed_session.token)
-                self.username_to_token.pop(removed_session.account.username)
+                self.token_to_session.delete(removed_session.token)
+                self.username_to_token.delete(removed_session.account.username)
                 event_bus.emit(EVENT_LOGOUT, session=removed_session)
                 # removed_session.account.session_token = None
 
         return removed_session
 
-    def clear(self):
-        self.token_to_session = ThreadSafeImmutableDict[str, Session]()
-        self.username_to_token = ThreadSafeImmutableDict[str, str]()
+    def logout_all(self):
+        self.rds.flushdb()
 
     def assign_session(self, user: User, forced_session_token: str = None):
 
@@ -84,8 +104,8 @@ class InMemSessionStorage(SessionStorage):
             new_token = forced_session_token or self._calc_new_token(user)
             session = Session(token=new_token, account=user)
 
-            self.username_to_token[user.username] = new_token
-            self.token_to_session[new_token] = session
+            self.username_to_token.set(user.username, new_token)
+            self.token_to_session.set(new_token, session)
 
             event_bus.emit(EVENT_LOGIN, session=session)
 
@@ -107,5 +127,8 @@ class InMemSessionStorage(SessionStorage):
 
         return r
 
-    def get_user_count(self) -> dict[str, int]:
-        return {"username_to_token": len(self.username_to_token), "token_to_session": len(self.token_to_session)}
+    def get_token_to_session_storage(self):
+        return self.token_to_session.get_all()
+
+    def get_username_to_token_storage(self):
+        return self.username_to_token.get_all()

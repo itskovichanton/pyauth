@@ -20,3 +20,4 @@ equifax-sync-1.0.0/work/*/logs
 equifax-sync-1.0.0/work/*/cmd/temp
 !equifax-sync-1.0.0/work/dev/cmd/*.sh
 venv
+tests/TestApp*
