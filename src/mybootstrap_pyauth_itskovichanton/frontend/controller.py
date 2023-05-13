@@ -5,10 +5,19 @@ from src.mybootstrap_ioc_itskovichanton.ioc import bean
 from src.mybootstrap_mvc_itskovichanton.exceptions import CoreException, \
     ERR_REASON_ACCESS_DENIED
 from src.mybootstrap_mvc_itskovichanton.pipeline import Action, ActionRunner, Result
+from src.mybootstrap_pyauth_itskovichanton.backend.auth import Authentificator
 
 from src.mybootstrap_pyauth_itskovichanton.backend.session_storage import SessionStorage
-from src.mybootstrap_pyauth_itskovichanton.entities import Caller, User
+from src.mybootstrap_pyauth_itskovichanton.entities import Caller, User, AuthArgs
 from src.mybootstrap_pyauth_itskovichanton.entities import Session
+
+
+@bean
+class LoginAction(Action):
+    auth: Authentificator
+
+    def run(self, params: AuthArgs = None) -> Any:
+        return self.auth.login(params)
 
 
 @dataclass
@@ -97,6 +106,7 @@ class AuthController:
     get_user_action: GetUserAction
     get_user_to_token_action: GetUserToTokenStorageAction
     get_token_to_session_action: GetTokenToSessionStorageAction
+    login_action: LoginAction
     logout_all_action: LogoutAllAction
 
     async def _execute_if_admin(self, action: Action, caller):
@@ -117,3 +127,6 @@ class AuthController:
 
     async def get_token_to_session(self, caller: Caller) -> Result:
         return await self._execute_if_admin(self.get_token_to_session_action, caller=caller)
+
+    async def login(self, auth_args: AuthArgs) -> Result:
+        return await self.action_runner.run(self.login_action, call=auth_args)

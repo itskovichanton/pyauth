@@ -33,3 +33,8 @@ class AuthFastAPISupport:
         async def get_token_to_session(request: Request):
             return self.presenter.present(
                 await self.controller.get_token_to_session(caller=get_caller_from_request(request)))
+
+        @fast_api.get("/auth/login")
+        async def login(request: Request):
+            return self.presenter.present(
+                await self.controller.login(auth_args=get_caller_from_request(request).auth_args))
