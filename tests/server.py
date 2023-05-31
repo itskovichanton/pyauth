@@ -1,7 +1,6 @@
 import uvicorn
 from fastapi import FastAPI
 from src.mbulak_tools.log_compressor import LogCompressorImpl
-from src.mbulak_tools.log_utils import CompactHTTPLogFormatter
 from src.mybootstrap_core_itskovichanton.logger import LoggerService
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
 from src.mybootstrap_mvc_fastapi_itskovichanton.middleware_logging import HTTPLoggingMiddleware
@@ -16,8 +15,8 @@ class TestServer:
     log_compressor: LogCompressorImpl
 
     def start(self):
-        self.logger_service.get_file_logger("http", formatter=CompactHTTPLogFormatter("%(t)s %(msg)s",
-                                                                                      compressor=self.log_compressor))
+        # self.logger_service.get_file_logger("http", formatter=CompressedHTTPLogFormatter("%(t)s %(msg)s",
+        #                                                                               compressor=self.log_compressor))
 
         fast_api = FastAPI(title='Test', debug=False)
         fast_api.add_middleware(HTTPLoggingMiddleware,

@@ -16,13 +16,13 @@ class AuthFastAPISupport:
 
     def mount(self, fast_api: FastAPI):
         @fast_api.get("/auth/logoutAll")
-        async def get_user(request: Request):
+        async def logout(request: Request):
             return self.presenter.present(await self.controller.logout_all(caller=get_caller_from_request(request)))
 
         @fast_api.get("/auth/getUser")
-        async def get_user(request: Request, username: str = None):
+        async def get_user(request: Request, username: str = None, token: str = None):
             return self.presenter.present(
-                await self.controller.get_user(caller=get_caller_from_request(request), username=username))
+                await self.controller.get_user(caller=get_caller_from_request(request), username=username, token=token))
 
         @fast_api.get("/auth/getUserToToken")
         async def get_user_to_token(request: Request):

@@ -5,7 +5,6 @@ from typing import Protocol
 
 from src.mbulak_tools.events import event_bus
 from src.mybootstrap_core_itskovichanton.redis_service import RedisService
-from src.mybootstrap_core_itskovichanton.utils import md5
 from src.mybootstrap_ioc_itskovichanton.config import ConfigService
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
 
@@ -63,7 +62,7 @@ class RedisSessionStorage(SessionStorage):
         self.lock = threading.Lock()
         self.rds = self.redis_service.get()
 
-        key_prefix = md5(self.config_service.get_config().full_name())
+        key_prefix = self.config_service.get_config().full_name()
         self.token_to_session = RedisSessionMap(key_prefix=f"{key_prefix}-ts", rds=self.rds)
         self.username_to_token = RedisStringMap(key_prefix=f"{key_prefix}-ut", rds=self.rds)
 

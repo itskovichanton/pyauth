@@ -5,8 +5,8 @@ from src.mybootstrap_ioc_itskovichanton.ioc import bean
 from src.mybootstrap_mvc_itskovichanton.exceptions import CoreException, \
     ERR_REASON_ACCESS_DENIED
 from src.mybootstrap_mvc_itskovichanton.pipeline import Action, ActionRunner, Result
-from src.mybootstrap_pyauth_itskovichanton.backend.auth import Authentificator
 
+from src.mybootstrap_pyauth_itskovichanton.backend.auth import Authentificator
 from src.mybootstrap_pyauth_itskovichanton.backend.session_storage import SessionStorage
 from src.mybootstrap_pyauth_itskovichanton.entities import Caller, User, AuthArgs
 from src.mybootstrap_pyauth_itskovichanton.entities import Session
@@ -23,6 +23,7 @@ class LoginAction(Action):
 @dataclass
 class GetUserActionParams:
     session: Session
+    token: str = None
     fail_if_absent: bool = True
     username: str = None
 
@@ -46,7 +47,10 @@ class GetUserAction(Action):
             if params.username:
                 r = self.session_storage.find_session(Session(account=User(username=params.username)))
             else:
-                r = self.session_storage.find_session(params.session)
+                if len(params.token or "") > 0:
+                    r = self.session_storage.find_session(Session(token=params.token))
+                else:
+                    r = self.session_storage.find_session(params.session)
             if not r and params.fail_if_absent:
                 raise CoreException(message="Пользователь не существует", reason=ERR_REASON_ACCESS_DENIED)
             return r
@@ -118,9 +122,10 @@ class AuthController:
     async def logout_all(self, caller: Caller) -> Result:
         return await self._execute_if_admin(action=self.logout_all_action, caller=caller)
 
-    async def get_user(self, caller: Caller, username: str = None) -> Result:
+    async def get_user(self, caller: Caller, username: str = None, token: str = None) -> Result:
         return await self._execute_if_admin(action=self.get_user_action,
-                                            caller=GetUserActionParams(session=caller.session, username=username))
+                                            caller=GetUserActionParams(session=caller.session, username=username,
+                                                                       token=token))
 
     async def get_user_to_token(self, caller: Caller) -> Result:
         return await self._execute_if_admin(action=self.get_user_action, caller=caller)

@@ -16,9 +16,9 @@ class AuthApp(Application):
     server: TestServer
 
     def run(self):
-        self._register_user(username="guest", session_token="guest-static-session-token", id=-1, role="user")
-        self._register_user(username="admin", session_token="admin-session", id=-10, role="admin")
-        self.session_storage.assign_session(User(username="antonitskovich11", password="12345"))
+        # self._register_user(username="guest", session_token="guest-static-session-token", id=-1, role="user")
+        # self._register_user(username="admin", session_token="admin-session", id=-10, role="admin")
+        # self.session_storage.assign_session(User(username="antonitskovich11", password="12345"))
         self.server.start()
         # self.user_repo.put(
         #     User(username="antonitskovich11", password="12345"))

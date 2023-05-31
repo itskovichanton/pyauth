@@ -1,5 +1,5 @@
 app:
-  name: TestApp
+  name: KMP-RU
   version: 1.0.0
 
 alerts:
@@ -26,6 +26,8 @@ loggers:
   my:
     backup_count: 3
 
+redis:
+  host: 10.1.2.49
 
 prod:
   qcb:
