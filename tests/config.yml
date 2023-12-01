@@ -1,5 +1,5 @@
 app:
-  name: KMP-RU
+  name: KMP-KG
   version: 1.0.0
 
 alerts:
@@ -27,7 +27,7 @@ loggers:
     backup_count: 3
 
 redis:
-  host: 10.1.2.49
+  host: 192.168.200.156
 
 prod:
   qcb:

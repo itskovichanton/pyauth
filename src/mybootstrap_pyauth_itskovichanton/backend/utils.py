@@ -2,7 +2,7 @@ import pickle
 import threading
 from collections import UserDict
 from dataclasses import asdict
-from typing import Dict
+from typing import Dict, Callable
 
 from redis.client import Redis
 
@@ -37,6 +37,7 @@ class RedisSessionMap:
             return None
         session_dict = pickle.loads(session_bytes)
         session = Session(**session_dict)
+        # account = dacite.from_dict(data_class=self.user_class, data=session.account, config=Config(check_types=False))
         account = self.user_class(**session.account)
         return Session(token=session.token, account=account)
 
@@ -45,8 +46,8 @@ class RedisSessionMap:
         session_bytes = pickle.dumps(session_dict)
         self.rds.set(self._make_key(key), session_bytes)
 
-    def delete(self, key: str) -> None:
-        self.rds.delete(self._make_key(key))
+    def delete(self, key: str):
+        return self.rds.delete(self._make_key(key))
 
     def get_all(self) -> Dict[str, Session]:
         keys = self.rds.keys(f"{self.key_prefix}:*")
@@ -64,6 +65,12 @@ class RedisSessionMap:
 
     def clear(self):
         self.rds.delete(self.key_prefix)
+
+    def update(self, token: str, updater: Callable[[Session, ], None]) -> Session:
+        v = self.get(token)
+        updater(v)
+        self.set(token, v)
+        return self.get(token)
 
 
 class RedisStringMap:

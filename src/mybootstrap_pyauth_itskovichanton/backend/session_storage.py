@@ -1,7 +1,7 @@
 import hashlib
 import random
 import threading
-from typing import Protocol
+from typing import Protocol, Callable
 
 from src.mbulak_tools.events import event_bus
 from src.mybootstrap_core_itskovichanton.redis_service import RedisService
@@ -125,6 +125,9 @@ class RedisSessionStorage(SessionStorage):
                 break
 
         return r
+
+    def update_session(self, token: str, updater: Callable[[Session, ], None]) -> Session:
+        return self.token_to_session.update(token, updater)
 
     def get_token_to_session_storage(self):
         return self.token_to_session.get_all()
