@@ -41,10 +41,10 @@ class RedisSessionMap:
         account = self.user_class(**session.account)
         return Session(token=session.token, account=account)
 
-    def set(self, key: str, session: Session) -> None:
+    def set(self, key: str, session: Session) -> bool | None:
         session_dict = asdict(session)
         session_bytes = pickle.dumps(session_dict)
-        self.rds.set(self._make_key(key), session_bytes)
+        return self.rds.set(self._make_key(key), session_bytes)
 
     def delete(self, key: str):
         return self.rds.delete(self._make_key(key))
@@ -64,7 +64,7 @@ class RedisSessionMap:
         self.user_class = user_class
 
     def clear(self):
-        self.rds.delete(self.key_prefix)
+        return self.rds.delete(self.key_prefix)
 
     def update(self, token: str, updater: Callable[[Session, ], None]) -> Session:
         v = self.get(token)
@@ -84,13 +84,13 @@ class RedisStringMap:
     def get(self, key: str) -> str:
         r = self.rds.get(self._make_key(key))
         if r is not None:
-            return str(r)
+            return r.decode("utf-8")
 
     def set(self, key: str, value: str) -> None:
         self.rds.set(self._make_key(key), value)
 
-    def delete(self, key: str) -> None:
-        self.rds.delete(self._make_key(key))
+    def delete(self, key: str) -> int:
+        return self.rds.delete(self._make_key(key))
 
     def get_all(self) -> Dict[str, str]:
         keys = self.rds.keys(f"{self.key_prefix}:*")
