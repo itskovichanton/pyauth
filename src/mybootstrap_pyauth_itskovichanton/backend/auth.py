@@ -38,6 +38,7 @@ class Authentificator(Protocol):
 REASON_USER_ALREADY_EXISTS = "REASON_ALREADY_EXIST"
 REASON_INVALID_PASSWORD = "REASON_AUTHORIZATION_FAILED_INVALID_PASSWORD"
 REASON_USER_NOT_EXISTS = "REASON_AUTHORIZATION_FAILED_USER_NOT_EXIST"
+REASON_EMPTY_CREDS = "REASON_EMPTY_CREDS"
 
 
 @bean
@@ -53,6 +54,9 @@ class AuthentificatorImpl(Authentificator):
         return self.session_storage.logout(session)
 
     def login(self, a: AuthArgs) -> Session:
+
+        if not a:
+            raise CoreException(message="Нет данных для входа", reason=REASON_EMPTY_CREDS)
 
         if len(a.session_token or "") > 0:
             return self.session_storage.find_session(Session(token=a.session_token))

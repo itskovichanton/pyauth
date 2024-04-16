@@ -17,7 +17,9 @@ class LoginAction(Action):
     auth: Authentificator
 
     def run(self, params: AuthArgs = None) -> Any:
-        return self.auth.login(params)
+        r = self.auth.login(params)
+        r.account.password = None
+        return r
 
 
 @dataclass

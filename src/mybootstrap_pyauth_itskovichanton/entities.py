@@ -9,7 +9,7 @@ ROLE_ADMIN = "admin"
 ROLE_REGULAR_USER = "regular-user"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class User(Generic[ID]):
     username: str = None
     password: str = None
@@ -20,7 +20,7 @@ class User(Generic[ID]):
     ip: str = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class Session:
     token: str = None
     account: User = None
