@@ -59,7 +59,9 @@ class AuthentificatorImpl(Authentificator):
             raise CoreException(message="Нет данных для входа", reason=REASON_EMPTY_CREDS)
 
         if len(a.session_token or "") > 0:
-            return self.session_storage.find_session(Session(token=a.session_token))
+            r = self.session_storage.find_session(Session(token=a.session_token))
+            if r:
+                return r
 
         validation.check_not_empty("username", a.username)
         validation.check_not_empty("password", a.password)
