@@ -43,7 +43,7 @@ class GetUserAction(Action):
             params = params.session
 
         if isinstance(params, Session):
-            params = GetUserActionParams(session=params)
+            params = GetUserActionParams(session=params, username=params.account.username, token=params.token)
 
         if isinstance(params, GetUserActionParams):
             if params.username:
