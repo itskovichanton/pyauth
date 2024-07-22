@@ -27,12 +27,14 @@ class GetUserActionParams:
     session: Session
     token: str = None
     fail_if_absent: bool = True
+    immediate_register: bool = False
     username: str = None
 
 
 @bean
 class GetUserAction(Action):
     session_storage: SessionStorage
+    auther: Authentificator
 
     def run(self, params: Any = None) -> Any:
 
@@ -53,6 +55,9 @@ class GetUserAction(Action):
                     r = self.session_storage.find_session(Session(token=params.token))
                 else:
                     r = self.session_storage.find_session(params.session)
+            if not r and params.session.account and params.immediate_register:
+                r = self.auther.login(
+                    auth_args=AuthArgs(username=params.username, password=params.session.account.password))
             if not r and params.fail_if_absent:
                 raise CoreException(message="Пользователь не существует", reason=ERR_REASON_ACCESS_DENIED)
             return r
