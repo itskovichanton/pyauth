@@ -22,7 +22,7 @@ class StraightPasswordValidator(PasswordValidator):
 
 class Authentificator(Protocol):
 
-    def register(self, a: User, session_token: str = None) -> Session:
+    def register(self, a: User, session_token: str = None, idempotent=False) -> Session:
         ...
 
     def login(self, auth_args: AuthArgs) -> Session:
@@ -76,12 +76,12 @@ class AuthentificatorImpl(Authentificator):
 
         return self.session_storage.assign_session(user)
 
-    def register(self, a: User, session_token: str = None) -> Session:
+    def register(self, a: User, session_token: str = None, idempotent=False) -> Session:
 
         validation.check_not_empty("username", a.username)
         validation.check_not_empty("password", a.password)
 
-        if self.user_repo.find(a):
+        if self.user_repo.find(a) and not idempotent:
             raise CoreException(message=f"Пользователь с именем {a.username} уже существует",
                                 reason=REASON_USER_ALREADY_EXISTS)
 
