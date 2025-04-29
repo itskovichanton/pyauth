@@ -81,11 +81,12 @@ class AuthentificatorImpl(Authentificator):
         validation.check_not_empty("username", a.username)
         validation.check_not_empty("password", a.password)
 
-        a = self.user_repo.find(a)
-        if a and not idempotent:
+        existing = self.user_repo.find(a)
+        if existing and not idempotent:
             raise CoreException(message=f"Пользователь с именем {a.username} уже существует",
                                 reason=REASON_USER_ALREADY_EXISTS)
-
+        if existing:
+            a = existing
         self.user_repo.put(a)
 
         return self.session_storage.assign_session(a, forced_session_token=session_token)
