@@ -92,8 +92,9 @@ class GetTokenToSessionStorageAction(Action):
 
 class CheckCallerRoleAction(Action):
 
-    def __init__(self, required_role: str, fail_msg: str = None):
+    def __init__(self, required_role: str = None, required_ips: list[str] = None, fail_msg: str = None):
         self.required_role = required_role
+        self.required_ips = required_ips
         self.fail_msg = fail_msg
 
     def run(self, params: Any = None) -> Any:
@@ -105,7 +106,8 @@ class CheckCallerRoleAction(Action):
         if isinstance(params, Session):
             params = params.account
 
-        if not (params and params.role == self.required_role):
+        if (self.required_role and (not (params and params.role == self.required_role))) or \
+                (self.required_ips and (params.ip not in self.required_ips)):
             raise CoreException(reason=ERR_REASON_ACCESS_DENIED, message=self.fail_msg)
 
         return passed_params

@@ -11,7 +11,10 @@ def get_caller_from_request(request: Request) -> Caller:
     password = None
     auth = request.headers.get("Authorization")
     if auth:
-        username, password = basicauth.decode(auth)
+        try:
+            username, password = basicauth.decode(auth)
+        except:
+            ...
     token = request.headers.get("sessionToken")
     auth_args = AuthArgs(session_token=token, username=username, password=password)
 
