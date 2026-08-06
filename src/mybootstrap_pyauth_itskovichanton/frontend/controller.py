@@ -18,7 +18,8 @@ class LoginAction(Action):
 
     def run(self, params: AuthArgs = None) -> Any:
         r = self.auth.login(params)
-        r.account.password = None
+        if r and r.account:
+            r.account.password = None
         return r
 
 
@@ -57,9 +58,13 @@ class GetUserAction(Action):
                     r = self.session_storage.find_session(params.session)
             if not r and params.session.account and params.immediate_register:
                 r = self.auther.login(
-                    auth_args=AuthArgs(username=params.username, password=params.session.account.password))
+                    auth_args=AuthArgs(username=params.username, password=params.session.account.password),
+                )
             if not r and params.fail_if_absent:
                 raise CoreException(message="Пользователь не существует", reason=ERR_REASON_ACCESS_DENIED)
+
+            if r and r.account:
+                r.account.password = None
             return r
 
         raise CoreException(message="Невозможно определить пользователя", reason=ERR_REASON_ACCESS_DENIED)
