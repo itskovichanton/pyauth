@@ -1,5 +1,6 @@
 from typing import Protocol
 
+from argon2 import PasswordHasher
 from src.mybootstrap_core_itskovichanton import validation
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
 from src.mybootstrap_mvc_itskovichanton.exceptions import CoreException
@@ -12,6 +13,36 @@ from src.mybootstrap_pyauth_itskovichanton.entities import User, Session, AuthAr
 class PasswordValidator(Protocol):
     def password_are_matched(self, passed, correct) -> bool:
         ...
+
+
+class HashedPasswordValidator(PasswordValidator):
+    def generate_hash(self, password: str) -> str:
+        ...
+
+
+@bean
+class Argon2PasswordValidator(HashedPasswordValidator):
+
+    def init(self) -> None:
+        self._hasher = PasswordHasher()
+
+    def generate_hash(self, password: str) -> str:
+        """Вспомогательный метод для создания хэша при регистрации пользователя."""
+        return self._hasher.hash(password)
+
+    def password_are_matched(self, passed: str, correct: str) -> bool:
+        """
+        Проверяет, совпадает ли введенный пароль с хэшем из базы данных.
+
+        :param passed: Чистый пароль, введенный пользователем (например, при входе).
+        :param correct: Строка хэша Argon2, сохраненная ранее в БД.
+        """
+        try:
+            # Метод verify возвращает True при успехе или вызывает исключение при ошибке
+            return self._hasher.verify(correct, passed)
+        except BaseException:
+            # Обработка ситуаций, если хэш в БД поврежден или имеет неверный формат
+            return False
 
 
 @bean
