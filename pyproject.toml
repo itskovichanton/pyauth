@@ -16,6 +16,16 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+    "argon2-cffi",
+    "basicauth",
+    "fastapi",
+    "redis",
+    "starlette",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/itskovichanton/pyauth"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
