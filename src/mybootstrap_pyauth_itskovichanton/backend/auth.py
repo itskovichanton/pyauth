@@ -1,27 +1,23 @@
-from typing import Protocol
-
 from argon2 import PasswordHasher
 from src.mybootstrap_core_itskovichanton import validation
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
 from src.mybootstrap_mvc_itskovichanton.exceptions import CoreException
-
 from src.mybootstrap_pyauth_itskovichanton.backend.session_storage import SessionStorage
 from src.mybootstrap_pyauth_itskovichanton.backend.user_repo import UserRepo
 from src.mybootstrap_pyauth_itskovichanton.entities import User, Session, AuthArgs
+from typing import Protocol
 
 
 class PasswordValidator(Protocol):
     def password_are_matched(self, passed, correct) -> bool:
         ...
 
-
-class HashedPasswordValidator(PasswordValidator):
     def generate_hash(self, password: str) -> str:
         ...
 
 
 @bean
-class Argon2PasswordValidator(HashedPasswordValidator):
+class Argon2PasswordValidator(PasswordValidator):
 
     def init(self) -> None:
         self._hasher = PasswordHasher()
@@ -49,6 +45,9 @@ class Argon2PasswordValidator(HashedPasswordValidator):
 class StraightPasswordValidator(PasswordValidator):
     def password_are_matched(self, passed, correct) -> bool:
         return passed == correct
+
+    def generate_hash(self, password: str) -> str:
+        return password
 
 
 class Authentificator(Protocol):
