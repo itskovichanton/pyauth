@@ -1,15 +1,14 @@
 import hashlib
 import random
 import threading
-from typing import Protocol, Callable
-
-from src.mbulak_tools.events import event_bus
 from src.mybootstrap_core_itskovichanton.redis_service import RedisService
 from src.mybootstrap_ioc_itskovichanton.config import ConfigService
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
-
 from src.mybootstrap_pyauth_itskovichanton.backend.utils import RedisSessionMap, RedisStringMap
 from src.mybootstrap_pyauth_itskovichanton.entities import User, Session
+from typing import Protocol, Callable
+
+from src.mbulak_tools.events import event_bus
 
 EVENT_LOGOUT = "event-logout"
 EVENT_LOGIN = "event-login"
@@ -51,6 +50,13 @@ class SessionStorage(Protocol):
     def set_user_class(self, user_class=User):
         ...
 
+    def update_session(self, token: str, updater: Callable[[Session, ], None]) -> Session:
+        ...
+
+
+def _username_key(user: User) -> str:
+    return f"slug={user.slug or ''}::username={user.username}"
+
 
 @bean
 class RedisSessionStorage(SessionStorage):
@@ -74,19 +80,19 @@ class RedisSessionStorage(SessionStorage):
         if criteria.token and len(criteria.token) > 0:
             return self.token_to_session.get(criteria.token)
 
-        token = self.username_to_token.get(criteria.account.username)
+        token = self.username_to_token.get(_username_key(criteria.account))
         if token:
             session = self.token_to_session.get(token)
             if session:
                 return session
-            self.username_to_token.delete(criteria.account.username)
+            self.username_to_token.delete(_username_key(criteria.account))
 
     def logout(self, criteria: Session) -> Session:
         removed_session = self.find_session(criteria)
         if removed_session:
             with self.lock:
                 self.token_to_session.delete(removed_session.token)
-                self.username_to_token.delete(removed_session.account.username)
+                self.username_to_token.delete(_username_key(removed_session.account))
                 event_bus.emit(EVENT_LOGOUT, session=removed_session)
                 # removed_session.account.session_token = None
 
@@ -103,7 +109,7 @@ class RedisSessionStorage(SessionStorage):
             new_token = forced_session_token or self._calc_new_token(user)
             session = Session(token=new_token, account=user)
 
-            self.username_to_token.set(user.username, new_token)
+            self.username_to_token.set(_username_key(user), new_token)
             self.token_to_session.set(new_token, session)
 
             event_bus.emit(EVENT_LOGIN, session=session)
@@ -113,10 +119,7 @@ class RedisSessionStorage(SessionStorage):
         return session
 
     def _calc_new_token(self, user: User) -> str:
-        # if user.session_token and len(user.session_token) > 0:
-        #     return user.session_token
-
-        r = self.token_factory.generate("", user)
+        r = self.token_factory.generate(user.slug or "", user)
         while True:
             existing_session = self.token_to_session.get(r)
             if existing_session:

@@ -18,6 +18,7 @@ class User(Generic[ID]):
     lang: str = None
     name: str = None
     ip: str = None
+    slug: str = None
 
 
 @dataclass(frozen=False)
