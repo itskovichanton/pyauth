@@ -1,14 +1,24 @@
+"""
+Сценарии входа, регистрации и выхода.
+
+Пароль сверяется через :class:`PasswordValidator` (Argon2 по умолчанию).
+Сессия после успешного входа выдаётся :class:`SessionStorage`.
+"""
+from typing import Protocol
+
 from argon2 import PasswordHasher
 from src.mybootstrap_core_itskovichanton import validation
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
 from src.mybootstrap_mvc_itskovichanton.exceptions import CoreException
+
 from src.mybootstrap_pyauth_itskovichanton.backend.session_storage import SessionStorage
 from src.mybootstrap_pyauth_itskovichanton.backend.user_repo import UserRepo
-from src.mybootstrap_pyauth_itskovichanton.entities import User, Session, AuthArgs
-from typing import Protocol
+from src.mybootstrap_pyauth_itskovichanton.entities import AuthArgs, Session, User
 
 
 class PasswordValidator(Protocol):
+    """Сравнение пароля с сохранённым секретом и генерация хэша при регистрации."""
+
     def password_are_matched(self, passed, correct) -> bool:
         ...
 
@@ -18,31 +28,32 @@ class PasswordValidator(Protocol):
 
 @bean
 class Argon2PasswordValidator(PasswordValidator):
+    """Проверка пароля по хэшу Argon2 (рекомендуемый вариант для продакшена)."""
 
     def init(self) -> None:
         self._hasher = PasswordHasher()
 
     def generate_hash(self, password: str) -> str:
-        """Вспомогательный метод для создания хэша при регистрации пользователя."""
+        """Хэш для сохранения в репозитории пользователей."""
         return self._hasher.hash(password)
 
     def password_are_matched(self, passed: str, correct: str) -> bool:
         """
-        Проверяет, совпадает ли введенный пароль с хэшем из базы данных.
+        Сверяет открытый пароль с хэшем из БД.
 
-        :param passed: Чистый пароль, введенный пользователем (например, при входе).
-        :param correct: Строка хэша Argon2, сохраненная ранее в БД.
+        :param passed: пароль, введённый пользователем.
+        :param correct: строка Argon2 из хранилища.
         """
         try:
-            # Метод verify возвращает True при успехе или вызывает исключение при ошибке
             return self._hasher.verify(correct, passed)
         except BaseException:
-            # Обработка ситуаций, если хэш в БД поврежден или имеет неверный формат
             return False
 
 
 @bean
 class StraightPasswordValidator(PasswordValidator):
+    """Сравнение паролей как есть. Только для тестов и локальной разработки, не для продакшена."""
+
     def password_are_matched(self, passed, correct) -> bool:
         return passed == correct
 
@@ -51,6 +62,7 @@ class StraightPasswordValidator(PasswordValidator):
 
 
 class Authentificator(Protocol):
+    """Фасад регистрации / login / logout поверх UserRepo + SessionStorage."""
 
     def register(self, a: User, session_token: str = None, idempotent=False) -> Session:
         ...
@@ -73,18 +85,26 @@ REASON_EMPTY_CREDS = "REASON_EMPTY_CREDS"
 
 @bean
 class AuthentificatorImpl(Authentificator):
+    """Стандартная реализация: пользователи в UserRepo, сессии в SessionStorage."""
+
     user_repo: UserRepo
     session_storage: SessionStorage
     password_validator: PasswordValidator
 
     def logout_all(self):
+        """Инвалидирует все сессии приложения (не Redis целиком)."""
         self.session_storage.logout_all()
 
     def logout(self, session: Session) -> Session:
+        """Выход одной сессии по токену или пользователю."""
         return self.session_storage.logout(session)
 
     def login(self, a: AuthArgs) -> Session:
+        """
+        Вход по sessionToken или по username+password.
 
+        Существующий токен не продлевает сессию сам по себе — TTL задаётся при assign_session.
+        """
         if not a:
             raise CoreException(message="Нет данных для входа", reason=REASON_EMPTY_CREDS)
 
@@ -107,7 +127,7 @@ class AuthentificatorImpl(Authentificator):
         return self.session_storage.assign_session(user)
 
     def register(self, a: User, session_token: str = None, idempotent=False) -> Session:
-
+        """Создаёт пользователя (или переиспользует при idempotent) и сразу выдаёт сессию."""
         validation.check_not_empty("username", a.username)
         validation.check_not_empty("password", a.password)
 

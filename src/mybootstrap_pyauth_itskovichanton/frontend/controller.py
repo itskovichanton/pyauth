@@ -1,19 +1,20 @@
+"""MVC-actions и AuthController: login и админские операции над сессиями."""
 from dataclasses import dataclass
 from typing import Any
 
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
-from src.mybootstrap_mvc_itskovichanton.exceptions import CoreException, \
-    ERR_REASON_ACCESS_DENIED
+from src.mybootstrap_mvc_itskovichanton.exceptions import CoreException, ERR_REASON_ACCESS_DENIED
 from src.mybootstrap_mvc_itskovichanton.pipeline import Action, ActionRunner, Result
 
 from src.mybootstrap_pyauth_itskovichanton.backend.auth import Authentificator
 from src.mybootstrap_pyauth_itskovichanton.backend.session_storage import SessionStorage
-from src.mybootstrap_pyauth_itskovichanton.entities import Caller, User, AuthArgs
-from src.mybootstrap_pyauth_itskovichanton.entities import Session
+from src.mybootstrap_pyauth_itskovichanton.entities import AuthArgs, Caller, Session, User
 
 
 @bean
 class LoginAction(Action):
+    """Вход по AuthArgs. Пароль в ответе всегда обнуляется."""
+
     auth: Authentificator
 
     def run(self, params: AuthArgs = None) -> Any:
@@ -25,6 +26,8 @@ class LoginAction(Action):
 
 @dataclass
 class GetUserActionParams:
+    """Параметры поиска сессии: по username, token или уже готовой Session."""
+
     session: Session
     token: str = None
     fail_if_absent: bool = True
@@ -34,11 +37,12 @@ class GetUserActionParams:
 
 @bean
 class GetUserAction(Action):
+    """Резолвит Session по Caller / User / token. Нужен пайплайну авторизации."""
+
     session_storage: SessionStorage
     auther: Authentificator
 
     def run(self, params: Any = None) -> Any:
-
         if isinstance(params, User):
             return params
 
@@ -46,7 +50,11 @@ class GetUserAction(Action):
             params = params.session
 
         if isinstance(params, Session):
-            params = GetUserActionParams(session=params, username=params.account.username, token=params.token)
+            params = GetUserActionParams(
+                session=params,
+                username=params.account.username if params.account else None,
+                token=params.token,
+            )
 
         if isinstance(params, GetUserActionParams):
             if params.username:
@@ -56,7 +64,7 @@ class GetUserAction(Action):
                     r = self.session_storage.find_session(Session(token=params.token))
                 else:
                     r = self.session_storage.find_session(params.session)
-            if not r and params.session.account and params.immediate_register:
+            if not r and params.session and params.session.account and params.immediate_register:
                 r = self.auther.login(
                     auth_args=AuthArgs(username=params.username, password=params.session.account.password),
                 )
@@ -72,6 +80,8 @@ class GetUserAction(Action):
 
 @bean
 class LogoutAllAction(Action):
+    """Админская инвалидация всех сессий приложения."""
+
     session_storage: SessionStorage
 
     def run(self, params: Any = None) -> Any:
@@ -81,6 +91,8 @@ class LogoutAllAction(Action):
 
 @bean
 class GetUserToTokenStorageAction(Action):
+    """Дамп username→token (только админ)."""
+
     session_storage: SessionStorage
 
     def run(self, params: Any = None) -> Any:
@@ -89,6 +101,8 @@ class GetUserToTokenStorageAction(Action):
 
 @bean
 class GetTokenToSessionStorageAction(Action):
+    """Дамп token→session (только админ)."""
+
     session_storage: SessionStorage
 
     def run(self, params: Any = None) -> Any:
@@ -96,6 +110,7 @@ class GetTokenToSessionStorageAction(Action):
 
 
 class CheckCallerRoleAction(Action):
+    """Проверка роли и/или IP аккаунта. Не bean: создаётся с конкретными required_*."""
 
     def __init__(self, required_role: str = None, required_ips: list[str] = None, fail_msg: str = None):
         self.required_role = required_role
@@ -112,7 +127,7 @@ class CheckCallerRoleAction(Action):
             params = params.account
 
         if (self.required_role and (not (params and params.role == self.required_role))) or \
-                (self.required_ips and (params.ip not in self.required_ips)):
+                (self.required_ips and (not params or params.ip not in self.required_ips)):
             raise CoreException(reason=ERR_REASON_ACCESS_DENIED, message=self.fail_msg)
 
         return passed_params
@@ -120,6 +135,8 @@ class CheckCallerRoleAction(Action):
 
 @bean
 class AuthController:
+    """Фасад FastAPI-роутов: login публичный, остальное только для role=admin."""
+
     action_runner: ActionRunner
     get_user_action: GetUserAction
     get_user_to_token_action: GetUserToTokenStorageAction
@@ -128,21 +145,25 @@ class AuthController:
     logout_all_action: LogoutAllAction
 
     async def _execute_if_admin(self, action: Action, caller):
-        return await self.action_runner.run(self.get_user_action,
-                                            CheckCallerRoleAction(required_role="admin", fail_msg="Не достаточно прав"),
-                                            action,
-                                            call=caller)
+        """Прогоняет action только если Caller — admin (через GetUser + CheckCallerRole)."""
+        return await self.action_runner.run(
+            self.get_user_action,
+            CheckCallerRoleAction(required_role="admin", fail_msg="Не достаточно прав"),
+            action,
+            call=caller,
+        )
 
     async def logout_all(self, caller: Caller) -> Result:
         return await self._execute_if_admin(action=self.logout_all_action, caller=caller)
 
     async def get_user(self, caller: Caller, username: str = None, token: str = None) -> Result:
-        return await self._execute_if_admin(action=self.get_user_action,
-                                            caller=GetUserActionParams(session=caller.session, username=username,
-                                                                       token=token))
+        return await self._execute_if_admin(
+            action=self.get_user_action,
+            caller=GetUserActionParams(session=caller.session, username=username, token=token),
+        )
 
     async def get_user_to_token(self, caller: Caller) -> Result:
-        return await self._execute_if_admin(action=self.get_user_action, caller=caller)
+        return await self._execute_if_admin(action=self.get_user_to_token_action, caller=caller)
 
     async def get_token_to_session(self, caller: Caller) -> Result:
         return await self._execute_if_admin(self.get_token_to_session_action, caller=caller)

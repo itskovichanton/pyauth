@@ -1,11 +1,19 @@
+"""Разбор HTTP-запроса в :class:`Caller` (Basic Auth + заголовок sessionToken)."""
 import basicauth
 from src.mybootstrap_mvc_fastapi_itskovichanton.utils import get_call_from_request
 from starlette.requests import Request
 
-from src.mybootstrap_pyauth_itskovichanton.entities import Caller, AuthArgs, Session, User
+from src.mybootstrap_pyauth_itskovichanton.entities import AuthArgs, Caller, Session, User
 
 
 def get_caller_from_request(request: Request) -> Caller:
+    """
+    Собирает Caller из входящего Request.
+
+    * ``Authorization: Basic`` → username/password;
+    * ``sessionToken`` → токен сессии;
+    * ``lang`` — из заголовка или query.
+    """
     call = get_call_from_request(request)
     username = None
     password = None
@@ -13,8 +21,8 @@ def get_caller_from_request(request: Request) -> Caller:
     if auth:
         try:
             username, password = basicauth.decode(auth)
-        except:
-            ...
+        except Exception:
+            pass
     token = request.headers.get("sessionToken")
     auth_args = AuthArgs(session_token=token, username=username, password=password)
 
@@ -22,11 +30,11 @@ def get_caller_from_request(request: Request) -> Caller:
         auth_args = None
 
     lang = request.headers.get("lang") or request.query_params.get("lang")
-    return Caller(call=call,
-                  auth_args=auth_args,
-                  session=Session(account=User(
-                      ip=call.ip,
-                      username=username,
-                      lang=lang, password=password),
-                      token=token)
-                  )
+    return Caller(
+        call=call,
+        auth_args=auth_args,
+        session=Session(
+            account=User(ip=call.ip, username=username, lang=lang, password=password),
+            token=token,
+        ),
+    )
